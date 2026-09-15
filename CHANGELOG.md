@@ -5,6 +5,11 @@ All notable changes to Freightline. Format follows
 
 ## Unreleased
 
+### Added
+
+- `freightline quote --format json` provides a stable machine-readable quote
+  contract while preserving the default table output.
+
 ## [4.7.2] - 2026-08-19
 
 ### Fixed

@@ -14,6 +14,7 @@ extra installed.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from decimal import Decimal, InvalidOperation
 
@@ -111,6 +112,30 @@ def cmd_quote(args: argparse.Namespace) -> int:
     service = _open_service(args)
     priced = service.quote(_build_request(args))
 
+    if args.format == "json":
+        print(
+            json.dumps(
+                {
+                    "carrier_code": priced.carrier_code,
+                    "service": priced.service.value,
+                    "zone": priced.zone,
+                    "billable_weight_kg": f"{priced.billable_weight_kg:.2f}",
+                    "currency": priced.currency,
+                    "lines": [
+                        {
+                            "code": line.code,
+                            "label": line.label,
+                            "amount": f"{line.amount.amount:.2f}",
+                            "kind": line.kind,
+                        }
+                        for line in priced.lines
+                    ],
+                    "total": f"{priced.total.amount:.2f}",
+                }
+            )
+        )
+        return EXIT_OK
+
     print(f"{priced.carrier_code} / {priced.service.value}")
     print(f"zone {priced.zone}, billable {priced.billable_weight_kg} kg")
     print("-" * 46)
@@ -189,6 +214,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     quote_parser = subparsers.add_parser("quote", help="price a parcel without booking it")
     _add_quote_arguments(quote_parser)
+    quote_parser.add_argument("--format", choices=("table", "json"), default="table")
     quote_parser.set_defaults(handler=cmd_quote)
 
     ship_parser = subparsers.add_parser("ship", help="book a shipment")
