@@ -339,6 +339,16 @@ Remote branches are left alone on purpose — `--yes` prints the `git push origi
 --delete` command for any it finds, but will not run it for you. Close the demo
 pull request when you are done with it; it must never be merged.
 
+Because the reset only deletes the branch **locally**, rebuilding after a reset
+that you pushed needs `--force`:
+
+```bash
+scripts/demo_review_branch.sh --push --force   # refreshes the branch and its PR
+```
+
+Without `--force` the script stops and tells you, rather than building a branch
+whose push would be rejected.
+
 `demo_review_branch.sh` always bases the PR on the repository's **default**
 branch, whatever branch you happen to be standing on. Override with
 `--base <branch>` if you need something else.

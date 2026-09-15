@@ -3,18 +3,21 @@
 #
 #   scripts/demo_review_branch.sh                  # create the branch locally
 #   scripts/demo_review_branch.sh --push           # ...push it and open a PR
+#   scripts/demo_review_branch.sh --push --force   # ...refresh an earlier run
 #   scripts/demo_review_branch.sh --push --base X  # against a non-default base
 #
-# The branch is never merged. scripts/demo_reset.sh removes it.
+# The branch is never merged. scripts/demo_reset.sh removes it locally.
 set -euo pipefail
 
 BRANCH="demo/saved-searches"
 PUSH=0
+FORCE=0
 BASE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --push) PUSH=1; shift ;;
+    --force) FORCE=1; shift ;;
     --base) BASE="${2:?--base needs a branch name}"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -30,8 +33,21 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 if git show-ref --quiet --verify "refs/heads/$BRANCH"; then
-  echo "$BRANCH already exists. Run scripts/demo_reset.sh --yes first." >&2
+  echo "$BRANCH already exists locally. Run scripts/demo_reset.sh --yes first." >&2
   exit 1
+fi
+
+# demo_reset.sh only deletes local branches, so a previous run can leave the
+# remote one behind. Rebuilding from a newer base would diverge and the push
+# would be rejected — catch that here rather than after all the work is done.
+if [[ "$PUSH" == "1" ]] && git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+  if [[ "$FORCE" != "1" ]]; then
+    echo "origin/$BRANCH already exists from an earlier run." >&2
+    echo "Re-run with --force to refresh it (and any open PR), or remove it first:" >&2
+    echo "  git push origin --delete $BRANCH" >&2
+    exit 1
+  fi
+  echo "origin/$BRANCH exists; it will be force-updated."
 fi
 
 # The base is the repository's default branch, never the branch you happen to be
@@ -111,9 +127,21 @@ echo
 echo "created $BRANCH from $BASE"
 
 if [[ "$PUSH" == "1" ]]; then
-  git push -u origin "$BRANCH"
+  if [[ "$FORCE" == "1" ]]; then
+    git push --force-with-lease -u origin "$BRANCH"
+  else
+    git push -u origin "$BRANCH"
+  fi
 
-  if ! git ls-remote --exit-code --heads origin "$BASE" >/dev/null 2>&1; then
+  EXISTING=""
+  if command -v gh >/dev/null 2>&1; then
+    EXISTING="$(GH_PAGER=cat gh pr list --head "$BRANCH" --state open \
+                  --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$EXISTING" ]]; then
+    echo "refreshed existing pull request #$EXISTING"
+  elif ! git ls-remote --exit-code --heads origin "$BASE" >/dev/null 2>&1; then
     echo "cannot open a PR: base '$BASE' does not exist on origin." >&2
     echo "push it first, or re-run with --base <an existing remote branch>." >&2
   elif command -v gh >/dev/null 2>&1; then

@@ -37,6 +37,13 @@ freightline = ["storage/migrations/*.sql"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Deprecations raised inside starlette and anyio, which we cannot fix from here.
+# Matched on the message rather than the category so the filters stay valid when
+# the `api` extra is not installed, and so a *new* warning still gets through.
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100
