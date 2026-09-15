@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from .. import __version__
 from ..errors import FreightlineError
-from . import routes_admin, routes_quotes, routes_shipments
+from . import routes_admin, routes_quotes, routes_saved_searches, routes_shipments
 
 DESCRIPTION = """
 Freightline rates, books, and tracks parcel shipments across our carrier panel.
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
 
     app.include_router(routes_quotes.router)
     app.include_router(routes_shipments.router)
+    app.include_router(routes_saved_searches.router)
     app.include_router(routes_admin.router)
     return app
 
