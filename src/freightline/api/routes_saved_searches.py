@@ -56,7 +56,7 @@ def list_saved_searches(
 @router.get("/v1/saved-searches/{search_id}/run", summary="Run a saved search")
 def run_saved_search(
     search_id: int,
-    limit: int = Query(default=50),
+    limit: int = Query(default=50, ge=1, le=200),
     conn: sqlite3.Connection = Depends(get_connection),
 ) -> list[dict[str, Any]]:
     return SavedSearchRepository(conn).run(search_id, limit=limit)
