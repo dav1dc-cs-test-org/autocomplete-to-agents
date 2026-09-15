@@ -59,6 +59,14 @@ while read -r branch; do
   [[ -n "$branch" ]] && git branch -D "$branch"
 done < <(git branch --list 'demo/*' | tr -d ' *')
 
+# Remote demo branches are left alone on purpose. Delete them yourself if you
+# pushed one: git push origin --delete demo/saved-searches
+if git ls-remote --heads origin 'demo/*' 2>/dev/null | grep -q .; then
+  echo
+  echo "note: demo branches still exist on origin. To remove them:"
+  git ls-remote --heads origin 'demo/*' | awk '{sub("refs/heads/","",$2); print "  git push origin --delete " $2}'
+fi
+
 if [[ -x .venv/bin/python ]]; then
   .venv/bin/python scripts/seed_data.py
   .venv/bin/python -m pytest -q

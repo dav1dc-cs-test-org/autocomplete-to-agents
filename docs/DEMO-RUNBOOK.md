@@ -333,7 +333,15 @@ scripts/demo_reset.sh --yes    # do it
 ```
 
 Discards uncommitted changes under `src/`, `tests/`, `docs/`, deletes the demo
-artifacts and `demo/*` branches, re-seeds, and re-runs the tests.
+artifacts and local `demo/*` branches, re-seeds, and re-runs the tests.
+
+Remote branches are left alone on purpose — `--yes` prints the `git push origin
+--delete` command for any it finds, but will not run it for you. Close the demo
+pull request when you are done with it; it must never be merged.
+
+`demo_review_branch.sh` always bases the PR on the repository's **default**
+branch, whatever branch you happen to be standing on. Override with
+`--base <branch>` if you need something else.
 
 ## If something goes wrong
 

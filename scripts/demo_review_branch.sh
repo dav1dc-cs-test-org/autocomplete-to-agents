@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 # Build the deliberately-defective branch used by the code-review demo steps.
 #
-#   scripts/demo_review_branch.sh            # create the branch locally
-#   scripts/demo_review_branch.sh --push     # ...and push it and open a PR
+#   scripts/demo_review_branch.sh                  # create the branch locally
+#   scripts/demo_review_branch.sh --push           # ...push it and open a PR
+#   scripts/demo_review_branch.sh --push --base X  # against a non-default base
 #
 # The branch is never merged. scripts/demo_reset.sh removes it.
 set -euo pipefail
 
 BRANCH="demo/saved-searches"
 PUSH=0
-[[ "${1:-}" == "--push" ]] && PUSH=1
+BASE=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --push) PUSH=1; shift ;;
+    --base) BASE="${2:?--base needs a branch name}"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -20,10 +29,36 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-BASE="$(git rev-parse --abbrev-ref HEAD)"
-echo "base branch: $BASE"
+if git show-ref --quiet --verify "refs/heads/$BRANCH"; then
+  echo "$BRANCH already exists. Run scripts/demo_reset.sh --yes first." >&2
+  exit 1
+fi
 
-git switch -c "$BRANCH" 2>/dev/null || git switch "$BRANCH"
+# The base is the repository's default branch, never the branch you happen to be
+# standing on: a local scratch branch produces a PR nobody can open.
+if [[ -z "$BASE" ]] && command -v gh >/dev/null 2>&1; then
+  BASE="$(GH_PAGER=cat gh repo view --json defaultBranchRef \
+            --jq .defaultBranchRef.name 2>/dev/null || true)"
+fi
+if [[ -z "$BASE" ]]; then
+  BASE="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  BASE="${BASE#origin/}"
+fi
+BASE="${BASE:-main}"
+
+if ! git show-ref --quiet --verify "refs/heads/$BASE"; then
+  echo "base branch '$BASE' does not exist locally. Run: git fetch origin $BASE" >&2
+  exit 1
+fi
+
+START="$(git rev-parse --abbrev-ref HEAD)"
+trap 'git switch --quiet "$START" 2>/dev/null || true' EXIT
+
+echo "base branch:    $BASE"
+echo "starting point: $START"
+
+# Branch from the base, not from HEAD, so the PR diff is exactly the seeded change.
+git switch --quiet -c "$BRANCH" "$BASE"
 
 cp demo/pr/changes/saved_searches.py        src/freightline/storage/saved_searches.py
 cp demo/pr/changes/routes_saved_searches.py src/freightline/api/routes_saved_searches.py
@@ -73,20 +108,25 @@ This stores a filter once and re-runs it.
 Includes migration 0004 and tests."
 
 echo
-echo "created $BRANCH"
+echo "created $BRANCH from $BASE"
 
 if [[ "$PUSH" == "1" ]]; then
   git push -u origin "$BRANCH"
-  if command -v gh >/dev/null 2>&1; then
+
+  if ! git ls-remote --exit-code --heads origin "$BASE" >/dev/null 2>&1; then
+    echo "cannot open a PR: base '$BASE' does not exist on origin." >&2
+    echo "push it first, or re-run with --base <an existing remote branch>." >&2
+  elif command -v gh >/dev/null 2>&1; then
     GH_PAGER=cat gh pr create \
       --base "$BASE" \
       --head "$BRANCH" \
       --title "Add saved searches for the ops dashboard" \
-      --body-file demo/pr/PR_BODY.md
+      --body-file demo/pr/PR_BODY.md \
+      || echo "gh pr create failed; open it manually against $BASE." >&2
   else
-    echo "gh not found; open the PR manually."
+    echo "gh not found; open the PR manually against $BASE."
   fi
 fi
 
-git switch "$BASE"
-echo "back on $BASE. Review with: git diff $BASE...$BRANCH"
+echo
+echo "returning to $START. Review with: git diff $BASE...$BRANCH"
