@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from ..storage.saved_searches import SavedSearchRepository
-from .deps import get_connection
+from .deps import get_connection, require_admin
 
-router = APIRouter(tags=["saved-searches"])
+router = APIRouter(tags=["saved-searches"], dependencies=[Depends(require_admin)])
 
 
 class SavedSearchIn(BaseModel):
