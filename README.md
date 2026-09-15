@@ -92,7 +92,13 @@ never merged, and its README is the presenter crib sheet.
 make serve        # http://localhost:8000/docs
 ```
 
+`freightline quote` alone accepts `--format {table,json}`; the default `table`
+format is the human-readable breakdown above. JSON format writes one object with
+the exact top-level keys `carrier_code`, `service`, `zone`,
+`billable_weight_kg`, `currency`, `lines`, and `total`. Monetary amounts and
+billable weight are strings with two decimal places. Each `lines` entry contains
+exactly `code`, `label`, `amount`, and `kind`.
+
 ## Licence
 
 MIT. Take the instruction files, take the skills, take the prompts.
-
