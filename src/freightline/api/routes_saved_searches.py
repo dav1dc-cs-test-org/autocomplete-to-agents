@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from ..storage.saved_searches import SavedSearchRepository
 from .deps import get_connection, require_admin
+from .schemas import SavedSearchDeleteOut
 
 router = APIRouter(tags=["saved-searches"], dependencies=[Depends(require_admin)])
 
@@ -62,10 +63,14 @@ def run_saved_search(
     return SavedSearchRepository(conn).run(search_id, limit=limit)
 
 
-@router.delete("/v1/saved-searches/{search_id}", summary="Delete a saved search")
+@router.delete(
+    "/v1/saved-searches/{search_id}",
+    response_model=SavedSearchDeleteOut,
+    summary="Delete a saved search",
+)
 def delete_saved_search(
     search_id: int,
     token: str = Query(default=""),
     conn: sqlite3.Connection = Depends(get_connection),
-) -> dict[str, bool]:
-    return {"deleted": SavedSearchRepository(conn).delete(search_id, token)}
+) -> SavedSearchDeleteOut:
+    return SavedSearchDeleteOut(deleted=SavedSearchRepository(conn).delete(search_id, token))

@@ -110,3 +110,7 @@ class ErrorOut(BaseModel):
     code: str
     message: str
     details: dict[str, object] = Field(default_factory=dict)
+
+
+class SavedSearchDeleteOut(BaseModel):
+    deleted: bool
